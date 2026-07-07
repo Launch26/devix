@@ -17,9 +17,10 @@ def train_trust_model():
     
     Instead of training an ML classifier with an arbitrary threshold,
     this model:
-      1. Computes deviation_ratio = |reported - measured| / measured
-      2. Fits a Gaussian to the "honest bulk" of deviation ratios (data-driven)
-      3. Uses P(deceptive) = 1 - CDF(deviation | mu, sigma) per observation
+      1. Computes ratio = self_reported / measured
+         (Chimera under-reports → ratio < 1.0; honest links → ratio ≈ 1.0)
+      2. Fits a Gaussian to the "honest bulk" of ratios (data-driven)
+      3. Uses P(deceptive) = CDF(ratio | mu, sigma) — how far below normal
       4. Performs soft Bayesian updates: alpha += P(honest), beta += P(deceptive)
       5. Stores per-link Beta(alpha, beta) parameters
     
@@ -33,14 +34,13 @@ def train_trust_model():
     df = df.dropna(subset=['self_reported_latency_ms', 'measured_latency_ms']).copy()
     df = df[df['measured_latency_ms'] > 0]  # Avoid division by zero
     
-    # 2. Compute deviation ratio for all observations
-    df['deviation_ratio'] = (
-        np.abs(df['self_reported_latency_ms'] - df['measured_latency_ms']) 
-        / df['measured_latency_ms']
-    )
+    # 2. Compute ratio: reported / measured
+    #    Honest link → ratio ≈ 1.0
+    #    Chimera-spoofed link → ratio < 1.0 (reports faster than reality)
+    df['ratio'] = df['self_reported_latency_ms'] / df['measured_latency_ms']
     
     # 3. Fit a Gaussian to the "honest bulk" of the data
-    all_ratios = df['deviation_ratio'].values
+    all_ratios = df['ratio'].values
     median_ratio = np.median(all_ratios)
     mad = np.median(np.abs(all_ratios - median_ratio))
     robust_sigma = mad * 1.4826
@@ -51,7 +51,8 @@ def train_trust_model():
     print(f"  Honest distribution: mu={mu_honest:.4f}, sigma={sigma_honest:.4f}")
     
     # 4. For each observation, compute P(deceptive)
-    df['p_deceptive'] = 1.0 - stats.norm.cdf(df['deviation_ratio'], loc=mu_honest, scale=sigma_honest)
+    #    CDF gives P(X <= ratio) — the lower the ratio, the more deceptive
+    df['p_deceptive'] = stats.norm.cdf(df['ratio'], loc=mu_honest, scale=sigma_honest)
     df['p_honest'] = 1.0 - df['p_deceptive']
     
     # 5. Soft Bayesian update per link

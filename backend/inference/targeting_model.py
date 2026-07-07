@@ -23,6 +23,7 @@ def compute_targeting_risk(link_id, traffic_share):
         ts_log = np.log1p(ts)
         X = np.array([[ts, ts_sq, ts_log]])
         prob = clf.predict_proba(X)[0][1]
+        print(f"link: {link_id}, traffic_share: {traffic_share}, Targeting probability: {float(prob)}")
         return float(prob)
     except Exception:
         return 0.0

@@ -21,7 +21,14 @@ def predict_congestion_penalty(link_id, load_ratio, capacity_units=None):
     if link_data:
         coeffs = link_data['poly_coeffs']
         base_latency = link_data['base_latency']
+        sat_threshold = link_data.get('saturation_threshold', 0.90)
+        
+        # If traffic pushes past the invisible threshold, it is completely throttled
+        if load_ratio >= sat_threshold:
+            return float('inf')
+            
         predicted_latency = np.polyval(coeffs, load_ratio)
+        print(f"link: {link_id}, load_ratio: {load_ratio}, Predicted latency: {predicted_latency}")
         penalty = predicted_latency - base_latency
         return max(0.0, float(penalty))
     return 0.0

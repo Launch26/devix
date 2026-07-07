@@ -78,6 +78,7 @@ def evaluate_route(text=None, origin=None, destination=None,
     chosen_path = [current_node]
     link_evaluations = []
     total_combined_cost = 0.0
+    total_estimated_latency = 0.0
     initial_route_changed = False
 
     while current_node != destination:
@@ -120,6 +121,7 @@ def evaluate_route(text=None, origin=None, destination=None,
         if eval_dict:
             link_evaluations.append(eval_dict)
             total_combined_cost += eval_dict['combined_cost']
+            total_estimated_latency += eval_dict['estimated_latency_ms']
             
             # Update route diversity tracker
             _recent_routes[link_id] += 1
@@ -149,7 +151,7 @@ def evaluate_route(text=None, origin=None, destination=None,
         'destination_id': destination,
         'chosen_path': chosen_path,
         'link_evaluations': link_evaluations,
-        'final_latency_estimate_ms': round(total_combined_cost, 1),
+        'final_latency_estimate_ms': round(total_estimated_latency, 1),
         'explanation': '; '.join(explanation_parts)
     }
 
@@ -215,12 +217,24 @@ def _evaluate_link_cost(link_id, current_node, next_node, uni, live_states):
         diversity_penalty
     )
 
+    # -- Estimate real latency using trust-weighted blend --
+    # Our model's prediction: physics baseline + predicted congestion penalty
+    model_latency = Tv + congestion_penalty
+    
+    # If we have live self-reported latency, blend it with our model based on trust.
+    # High trust → believe the link's self-report. Low trust → rely on our model.
+    if self_reported_latency is not None and self_reported_latency > 0:
+        estimated_latency = (trust_score * self_reported_latency) + ((1.0 - trust_score) * model_latency)
+    else:
+        estimated_latency = model_latency
+
     eval_dict = {
         'link_id': link_id,
         'predicted_congestion_penalty_ms': round(congestion_penalty, 1),
         'trust_score': round(trust_score, 2),
         'targeting_risk_score': round(targeting_risk, 2),
-        'combined_cost': round(combined_cost, 1)
+        'combined_cost': round(combined_cost, 1),
+        'estimated_latency_ms': round(estimated_latency, 1)
     }
 
     return combined_cost, eval_dict
