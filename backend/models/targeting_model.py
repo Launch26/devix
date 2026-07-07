@@ -10,7 +10,7 @@ import numpy as np
 import joblib
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-PARAMS_PATH = os.path.join(BASE_DIR, 'trained_params.json')
+PARAMS_PATH = os.path.join(BASE_DIR, 'targeting_params.json')
 CLASSIFIER_PATH = os.path.join(BASE_DIR, 'targeting_classifier.joblib')
 
 _params = None
@@ -21,8 +21,7 @@ def _load():
     global _params, _classifier
     if _params is None:
         with open(PARAMS_PATH, 'r') as f:
-            all_params = json.load(f)
-        _params = all_params['targeting']
+            _params = json.load(f)
     if _classifier is None and os.path.exists(CLASSIFIER_PATH):
         _classifier = joblib.load(CLASSIFIER_PATH)
 

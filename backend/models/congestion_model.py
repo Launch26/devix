@@ -10,7 +10,7 @@ import numpy as np
 import joblib
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-PARAMS_PATH = os.path.join(BASE_DIR, 'trained_params.json')
+PARAMS_PATH = os.path.join(BASE_DIR, 'congestion_params.json')
 REGRESSOR_PATH = os.path.join(BASE_DIR, 'congestion_regressor.joblib')
 
 _params = None
@@ -21,8 +21,7 @@ def _load():
     global _params, _regressor
     if _params is None:
         with open(PARAMS_PATH, 'r') as f:
-            all_params = json.load(f)
-        _params = all_params['congestion']
+            _params = json.load(f)
     if _regressor is None and os.path.exists(REGRESSOR_PATH):
         _regressor = joblib.load(REGRESSOR_PATH)
 

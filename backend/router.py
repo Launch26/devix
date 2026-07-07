@@ -8,7 +8,7 @@ conditions (killed nodes or links) to dynamically re-route traffic.
 import chaos
 from physics import compute_void_distance, compute_void_travel_time
 
-def find_route(origin, destination, universe, chaos_state=None, avoided_links=None):
+def find_route(origin, destination, universe, chaos_state=None, avoided_links=None, adjusted_weights=None):
     """
     Finds the shortest path (in terms of travel time latency) between origin and destination nodes.
     Uses Dijkstra's algorithm. Ignores nodes and links that are currently marked as killed in the chaos state,
@@ -20,6 +20,7 @@ def find_route(origin, destination, universe, chaos_state=None, avoided_links=No
         universe (dict): The universe state containing nodes, links, and metadata.
         chaos_state (dict, optional): Current state of killed nodes/links. Defaults to None.
         avoided_links (set, optional): Additional link IDs to exclude from routing.
+        adjusted_weights (dict, optional): Mapping of link_id to dynamic cost. Overrides default Tv.
         
     Returns:
         list or None: An ordered list of node IDs representing the route, or None if no path exists.
@@ -50,8 +51,14 @@ def find_route(origin, destination, universe, chaos_state=None, avoided_links=No
         if key in killed_links:
             continue
             
-        L = compute_void_distance(node_map[a], node_map[b], metadata)
-        Tv = compute_void_travel_time(node_map[a], node_map[b], L, metadata)
+        if adjusted_weights and key in adjusted_weights:
+            Tv = adjusted_weights[key]
+        else:
+            L = compute_void_distance(node_map[a], node_map[b], metadata)
+            Tv = compute_void_travel_time(node_map[a], node_map[b], L, metadata)
+            
+        if Tv == float('inf'):
+            continue
         
         if a in adj: adj[a].append({'to': b, 'weight': Tv})
         if b in adj: adj[b].append({'to': a, 'weight': Tv})
