@@ -1,0 +1,27 @@
+{
+  "origin_id": "Caelum",
+  "destination_id": "Aegis",
+  "chosen_path": [
+    "Caelum",
+    "Dawn",
+    "Aegis"
+  ],
+  "link_evaluations": [
+    {
+      "link_id": "Caelum-Dawn",
+      "predicted_congestion_penalty_ms": 0,
+      "trust_score": 0.96,
+      "targeting_risk_score": 0.29,
+      "combined_cost": 111717.4
+    },
+    {
+      "link_id": "Aegis-Dawn",
+      "predicted_congestion_penalty_ms": 0,
+      "trust_score": 0.98,
+      "targeting_risk_score": 0.31,
+      "combined_cost": 117954.6
+    }
+  ],
+  "final_latency_estimate_ms": 229671.9,
+  "explanation": "All links passed safety evaluation. Using optimal physics route."
+}

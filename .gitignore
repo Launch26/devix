@@ -1,0 +1,39 @@
+# Environment
+.env
+*.env
+backend/.env
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Virtual environment
+.venv/
+venv/
+
+# Trained ML models
+backend/models/*.joblib
+backend/models/*.json
+
+# (Optional) Ignore the entire models folder if you don't want to push any model files
+# backend/models/
+
+# Node
+node_modules/
+dist/
+dist-ssr/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# IDE
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
