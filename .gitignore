@@ -14,6 +14,7 @@ venv/
 # Trained ML models
 backend/models/*.joblib
 backend/models/*.json
+backend/models/*.pkl
 
 # (Optional) Ignore the entire models folder if you don't want to push any model files
 # backend/models/
