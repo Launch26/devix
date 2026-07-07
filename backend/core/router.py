@@ -5,8 +5,8 @@ between an origin and destination node. It takes into account current 'chaos'
 conditions (killed nodes or links) to dynamically re-route traffic.
 """
 
-import chaos
-from physics import compute_void_distance, compute_void_travel_time
+from simulation import chaos
+from simulation.physics import compute_void_distance, compute_void_travel_time
 
 def find_route(origin, destination, universe, chaos_state=None, avoided_links=None, adjusted_weights=None):
     """

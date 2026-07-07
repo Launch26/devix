@@ -6,8 +6,8 @@ import os
 
 # Directories
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.abspath(os.path.join(BASE_DIR, '..', '..', 'challenge'))
-MODELS_DIR = os.path.join(BASE_DIR, 'models')
+DATA_DIR = os.path.abspath(os.path.join(BASE_DIR, '..', 'Datasets'))
+MODELS_DIR = os.path.join(BASE_DIR, '..', 'models')
 
 os.makedirs(MODELS_DIR, exist_ok=True)
 
@@ -25,7 +25,7 @@ def train_trust_model():
     
     Trust score at inference = alpha / (alpha + beta)
     """
-    print("\n═══ Training Trust Model (Probabilistic Bayesian) ═══")
+    print("\n=== Training Trust Model (Probabilistic Bayesian) ===")
     TELEMETRY_CSV = os.path.join(DATA_DIR, 'link_telemetry.csv')
     df = pd.read_csv(TELEMETRY_CSV)
     
@@ -85,7 +85,7 @@ def train_trust_model():
     }
     
     joblib.dump(model_data, os.path.join(MODELS_DIR, 'trust_model.pkl'))
-    print(f"✅ Saved probabilistic trust model for {len(trust_params)} links to {MODELS_DIR}/trust_model.pkl")
+    print(f"[OK] Saved probabilistic trust model for {len(trust_params)} links to {MODELS_DIR}/trust_model.pkl")
     print(f"  Global prior: alpha={global_prior['alpha']:.2f}, beta={global_prior['beta']:.2f}")
 
 if __name__ == '__main__':

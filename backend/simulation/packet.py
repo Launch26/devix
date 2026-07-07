@@ -8,8 +8,8 @@ atmosphere delay) and builds the 'hop_log' for the frontend visualization.
 
 import math
 import uuid
-from physics import compute_void_distance, compute_void_travel_time, compute_crust_transit_time, find_closest_tower_pair
-from codex import encode_payload
+from simulation.physics import compute_void_distance, compute_void_travel_time, compute_crust_transit_time, find_closest_tower_pair
+from simulation.codex import encode_payload
 
 import hashlib
 

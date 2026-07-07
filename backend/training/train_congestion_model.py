@@ -10,14 +10,14 @@ import joblib
 
 # Paths
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.abspath(os.path.join(BASE_DIR, '..', '..', 'challenge'))
-MODELS_DIR = os.path.join(BASE_DIR, 'models')
+DATA_DIR = os.path.abspath(os.path.join(BASE_DIR, '..', 'Datasets'))
+MODELS_DIR = os.path.join(BASE_DIR, '..', 'models')
 os.makedirs(MODELS_DIR, exist_ok=True)
 
 TRAFFIC_CSV = os.path.join(DATA_DIR, 'link_traffic_history.csv')
 
 def train_congestion_model():
-    print("\n═══ Training Congestion Model ═══")
+    print("\n=== Training Congestion Model ===")
     df = pd.read_csv(TRAFFIC_CSV)
     
     df_ok = df[df['status'] == 'ok'].copy()
@@ -84,7 +84,7 @@ def train_congestion_model():
     with open(params_path, 'w') as f:
         json.dump(params, f, indent=2)
         
-    print(f"\n✅ Congestion model saved to {MODELS_DIR}/congestion_params.json and congestion_regressor.joblib")
+    print(f"\nCongestion model saved to {MODELS_DIR}/congestion_params.json and congestion_regressor.joblib")
 
 if __name__ == '__main__':
     train_congestion_model()

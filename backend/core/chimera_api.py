@@ -8,7 +8,7 @@ import time
 import httpx
 from dotenv import load_dotenv
 
-load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
+load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
 
 CHIMERA_BASE_URL = os.getenv('CHIMERA_BASE_URL', 'https://chimera.launch26.space')
 CHIMERA_API_KEY = os.getenv('CHIMERA_API_KEY', '')

@@ -11,9 +11,9 @@ with capacity_units for Chimera defense system.
 import json
 import math
 import os
-from physics import compute_void_distance
+from simulation.physics import compute_void_distance
 
-config_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'universe-config.json'))
+config_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'universe-config.json'))
 
 with open(config_path, 'r', encoding='utf-8') as f:
     config = json.load(f)

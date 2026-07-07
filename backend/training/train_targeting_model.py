@@ -9,14 +9,14 @@ import joblib
 
 # Paths
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.abspath(os.path.join(BASE_DIR, '..', '..', 'challenge'))
-MODELS_DIR = os.path.join(BASE_DIR, 'models')
+DATA_DIR = os.path.abspath(os.path.join(BASE_DIR, '..', 'Datasets'))
+MODELS_DIR = os.path.join(BASE_DIR, '..', 'models')
 os.makedirs(MODELS_DIR, exist_ok=True)
 
 INCIDENT_CSV = os.path.join(DATA_DIR, 'link_incident_history.csv')
 
 def train_targeting_model():
-    print("\n═══ Training Targeting-Risk Model ═══")
+    print("\n=== Training Targeting-Risk Model ===")
     df = pd.read_csv(INCIDENT_CSV)
     df = df.dropna(subset=['traffic_share'])
     df['jammed_flag'] = df['jammed_flag'].map({True: 1, False: 0, 'True': 1, 'False': 0})
@@ -73,7 +73,7 @@ def train_targeting_model():
     with open(params_path, 'w') as f:
         json.dump(params, f, indent=2)
         
-    print(f"\n✅ Targeting model saved to {MODELS_DIR}/targeting_params.json and targeting_classifier.joblib")
+    print(f"\n[OK] Targeting model saved to {MODELS_DIR}/targeting_params.json and targeting_classifier.joblib")
 
 if __name__ == '__main__':
     train_targeting_model()

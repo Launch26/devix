@@ -16,15 +16,15 @@ Architecture:
 import math
 from collections import defaultdict
 
-from router import find_route
-from physics import compute_void_distance, compute_void_travel_time
-import chimera_api
-from models.congestion_model import predict_congestion_penalty
-from models.trust_model import compute_trust_score
-from models.targeting_model import compute_targeting_risk
-from nlp_parser import parse_request
-import universe
-import chaos
+from core.router import find_route
+from simulation.physics import compute_void_distance, compute_void_travel_time
+from core import chimera_api
+from inference.congestion_model import predict_congestion_penalty
+from inference.trust_model import compute_trust_score
+from inference.targeting_model import compute_targeting_risk
+from core.nlp_parser import parse_request
+from simulation import universe
+from simulation import chaos
 
 # -- Cost function weights --
 CONGESTION_WEIGHT = 1.0
@@ -192,7 +192,7 @@ def _evaluate_link_cost(link_id, current_node, next_node, uni, live_states):
     if self_reported_latency is not None and self_reported_latency > 0:
         trust_score = compute_trust_score(link_id, self_reported_latency, load_ratio)
     else:
-        from models.trust_model import get_baseline_trust
+        from inference.trust_model import get_baseline_trust
         trust_score = get_baseline_trust(link_id)
 
     # -- Invoke sub-model 3: Targeting Risk --

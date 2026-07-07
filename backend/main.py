@@ -11,11 +11,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
 
-import universe
-from router import find_route
-from packet import build_packet
-import chaos
-from copilot import evaluate_route
+from simulation import universe
+from core.router import find_route
+from simulation.packet import build_packet
+from simulation import chaos
+from core.copilot import evaluate_route
 
 app = FastAPI(
     title="Zeta-26 Relic Ring Protocol",
@@ -181,7 +181,7 @@ def get_chimera_state():
     Proxy endpoint to fetch the current Chimera telemetry state.
     Useful for frontend visualization of live link conditions.
     """
-    import chimera_api
+    from core import chimera_api
     state = chimera_api.fetch_live_state()
     if not state:
         raise HTTPException(status_code=502, detail="Could not reach Chimera API")
@@ -193,6 +193,6 @@ def get_chimera_links():
     """
     Proxy endpoint for the Chimera links list.
     """
-    import chimera_api
+    from core import chimera_api
     links = chimera_api.fetch_links()
     return links
