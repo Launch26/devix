@@ -51,8 +51,7 @@ def train_trust_model():
     print(f"  Honest distribution: mu={mu_honest:.4f}, sigma={sigma_honest:.4f}")
     
     # 4. For each observation, compute P(deceptive)
-    #    CDF gives P(X <= ratio) — the lower the ratio, the more deceptive
-    df['p_deceptive'] = stats.norm.cdf(df['ratio'], loc=mu_honest, scale=sigma_honest)
+    df['p_deceptive'] = stats.norm.sf(df['ratio'], loc=mu_honest, scale=sigma_honest)
     df['p_honest'] = 1.0 - df['p_deceptive']
     
     # 5. Soft Bayesian update per link
