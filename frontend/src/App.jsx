@@ -379,7 +379,7 @@ export default function App() {
               </div>
 
               {copilotResult.link_evaluations?.map((ev, i) => {
-                const isRerouted = ev.trust_score < 0.5 || ev.combined_cost > 90000;
+                const isRerouted = ev.trust_score < 0.5 || ev.targeting_risk_score > 0.5;
                 return (
                 <div key={ev.link_id} style={{
                     background: '#1a1625', 
