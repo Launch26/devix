@@ -54,7 +54,7 @@ def generate_plots():
     if os.path.exists(telemetry_csv) and os.path.exists(trust_model_path):
         df_tel = pd.read_csv(telemetry_csv).dropna(subset=['self_reported_latency_ms', 'measured_latency_ms'])
         df_tel = df_tel[df_tel['measured_latency_ms'] > 0]
-        df_tel['deviation_ratio'] = np.abs(df_tel['self_reported_latency_ms'] - df_tel['measured_latency_ms']) / df_tel['measured_latency_ms']
+        df_tel['ratio'] = df_tel['self_reported_latency_ms'] / df_tel['measured_latency_ms']
         
         trust_model = joblib.load(trust_model_path)
         mu = trust_model['honest_distribution']['mu']
@@ -62,20 +62,22 @@ def generate_plots():
         
         plt.figure(figsize=(10, 6))
         
-        # Filter for visualization (clip long tail)
-        max_plot_val = min(df_tel['deviation_ratio'].max(), 1.0)
-        plot_data = df_tel[df_tel['deviation_ratio'] <= max_plot_val]['deviation_ratio']
+        # Filter for visualization (clip outliers)
+        plot_data = df_tel['ratio'].clip(0, 2.0)
         
-        # Histogram of deviations
-        plt.hist(plot_data, bins=50, density=True, alpha=0.6, color='skyblue', label='Deviation Ratio Histogram')
+        # Histogram of ratios
+        plt.hist(plot_data, bins=50, density=True, alpha=0.6, color='skyblue', label='Ratio Histogram')
         
         # Overlay the Gaussian
-        x = np.linspace(0, max_plot_val, 200)
+        x = np.linspace(0, 2.0, 200)
         p = stats.norm.pdf(x, mu, sigma)
         plt.plot(x, p, 'k', linewidth=2, label=f'Honest Bulk Fit (mu={mu:.4f}, sigma={sigma:.4f})')
         
-        plt.title('Trust Model: Deviation Ratio Distribution')
-        plt.xlabel('Deviation Ratio = |Reported - Measured| / Measured')
+        # Mark the deception zone
+        plt.axvline(x=1.0, color='green', linestyle='--', alpha=0.5, label='Honest baseline (ratio=1.0)')
+        
+        plt.title('Trust Model: Reported/Measured Ratio Distribution')
+        plt.xlabel('Ratio = Reported / Measured (< 1.0 = likely Chimera spoofing)')
         plt.ylabel('Density')
         plt.legend()
         plt.grid(True)
