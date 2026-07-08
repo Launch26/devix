@@ -155,7 +155,30 @@ def route_with_copilot(req: RouteRequest):
     if 'error' in result:
         raise HTTPException(status_code=400, detail=result['error'])
     
-    # ── Also build the full packet with hop_log for frontend visualization ──
+    return result
+
+
+@app.post("/api/route_ui", dependencies=[Depends(verify_api_key)])
+def route_with_copilot_ui(req: RouteRequest):
+    """
+    Identical to /api/route but includes the 'packet' field for the frontend UI.
+    """
+    if not req.text and not (req.origin and req.destination):
+        raise HTTPException(
+            status_code=400,
+            detail="Provide either 'text' (natural language) or both 'origin' and 'destination'"
+        )
+    
+    result = evaluate_route(
+        text=req.text,
+        origin=req.origin,
+        destination=req.destination,
+        message=req.message
+    )
+    
+    if 'error' in result:
+        raise HTTPException(status_code=400, detail=result['error'])
+    
     try:
         uni = universe.get_universe()
         route = result['chosen_path']
@@ -163,13 +186,9 @@ def route_with_copilot(req: RouteRequest):
         destination_id = result['destination_id']
         msg = req.message or (req.text if req.text else "Hello")
         
-        # Build Phase 1 packet on the co-pilot's chosen path
         packet = build_packet(origin_id, destination_id, msg, route, uni)
-        
-        # Merge: co-pilot evaluations + Phase 1 hop detail
         result['packet'] = packet
     except Exception as e:
-        # If packet building fails, still return the co-pilot result
         result['packet_error'] = str(e)
     
     return result

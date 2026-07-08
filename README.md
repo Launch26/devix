@@ -1,46 +1,94 @@
-# Zeta-26 Interplanetary Routing Simulator
+# Zeta-26 Interplanetary Routing Simulator: Phase 2 AI Defense
 
-Zeta-26 is a real-time web application that simulates a futuristic interplanetary communication network using the "Relic Ring Protocol". It demonstrates advanced routing algorithms, physics-based latency calculations, and network resilience.
+Welcome to the **Zeta-26 Interplanetary Routing Simulator**. This project simulates a futuristic communication network using the "Relic Ring Protocol". 
 
-## Overview
+For **Phase 2**, the network is under attack by the *Chimera* threat actor. We have implemented a sophisticated **Analytical AI Co-Pilot** to defend the network by dynamically routing traffic around jammed, congested, and spoofed links in real-time.
 
-The simulator consists of a FastAPI backend and a React frontend. The network contains multiple planetary nodes (e.g., Aegis, Boreas, Dawn), each equipped with communication towers and differing atmospheric/physical properties.
+## 🚀 Phase 2 Defense Features
 
-### Features
-*   **Physics-Based Routing:** Calculates void travel distances and internal fiber transit times taking into account atmospheric refraction, planet radii, and the speed of light.
-*   **Dynamic Shortest-Path Algorithm:** Uses Dijkstra's algorithm to determine the most efficient route between origin and destination planets.
-*   **Chaos Mode:** Allows users to simulate network failures by "killing" nodes or links, prompting the system to re-route traffic dynamically.
-*   **End-to-End Encryption (E2EE):** Simulates security by applying an XOR stream cipher (using SHA-256) over the network payload.
-*   **Codex Translations:** Demonstrates data transformations as messages pass through planetary nodes with different base-encoding systems (Codex).
+Our defense mechanism is powered by three specialized Machine Learning sub-models that evaluate every link at every hop:
 
-## Project Structure
+1. **Congestion Prediction Model (Gradient Boosting Regressor)**
+   - Replaced basic polynomial curves with a powerful, link-aware GBR model.
+   - Accurately predicts expected latency based on historical `load_ratio` patterns while capturing cross-link dynamics using one-hot encoded link IDs.
+2. **Targeting Risk Model (Logistic Regression)**
+   - Calculates the probability (S-curve) that a link will be targeted for instantaneous jamming by Chimera based on its current `traffic_share`.
+3. **Probabilistic Trust Model (Bayesian & Robust Statistics)**
+   - Detects "spoofed" links where Chimera maliciously under-reports latency to lure traffic.
+   - Computes an expected honest distribution robustly, then assigns a `P(deceptive)` score.
+   - Updates a per-link Bayesian prior (`alpha`, `beta`) to form a highly accurate Trust Score that penalizes deceptive links.
 
-*   `backend/`: Contains the FastAPI application.
-    *   `main.py`: API entry point and HTTP endpoints.
-    *   `universe.py`: Handles state loading and tower initializations from `universe-config.json`.
-    *   `router.py`: Dijkstra routing algorithm implementation.
-    *   `physics.py`: Mathematical calculations for distance and latency.
-    *   `packet.py`: Constructs the network payload, E2EE, and simulation hop logs.
-    *   `chaos.py`: State management for network disruptions.
-    *   `codex.py`: Handles string-to-base encoding.
-*   `frontend/`: Contains the React application built with Vite.
-    *   `src/App.jsx`: Main application container, manages global state and coordinates UI components.
-    *   `src/components/`: Reusable UI elements for rendering the Star Map, Hop Logs, and Analytics.
+### Natural Language Explanations
+The Co-Pilot generates concise, human-readable explanations for its routing decisions, specifically calling out any links it avoided due to low trust or high targeting risk.
+* **Note:** This feature utilizes the Groq LLM API. If no API key is provided, the system gracefully falls back to a deterministic, structured explanation template.
 
-## Getting Started
+---
 
-### Using Docker Compose (Recommended)
-You can run both the frontend and backend simultaneously using Docker Compose:
+## 🛠 Getting Started (Evaluators)
+
+The application is fully containerized for ease of evaluation.
+
+### Prerequisites
+- [Docker](https://docs.docker.com/get-docker/)
+- [Docker Compose](https://docs.docker.com/compose/install/)
+
+### 1. Environment Setup (Optional but Recommended)
+To enable the advanced LLM-generated natural language explanations, you can provide a Groq API key.
+1. Create a free API key at [https://console.groq.com/keys](https://console.groq.com/keys)
+2. Create a `.env` file in the `backend/` directory.
+3. Add your key:
+   ```env
+   GROQ_API_KEY=your_groq_api_key_here
+   ```
+*(If you skip this step, the application will still work but using the deterministic template fallback).*
+
+### 2. Running the Application
+From the root of the project, run:
+
 ```bash
 docker-compose up --build
 ```
-This will start the backend API on port 8000 and the frontend on port 80 (or as configured in docker-compose.yml).
 
-### Running Locally
-If you prefer not to use Docker, you can run them manually:
-1.  **Backend:** Navigate to `backend/` and run `uvicorn main:app --reload` to start the FastAPI server.
-2.  **Frontend:** Navigate to `frontend/`, run `npm install` followed by `npm run dev` to launch the React interface.
+### 3. Accessing the Application
+- **Frontend UI:** Open your browser to [http://localhost:8080](http://localhost:8080)
+- **Backend API:** The FastAPI backend is running on `http://localhost:3001`
+- **Interactive API Docs:** Visit [http://localhost:3001/docs](http://localhost:3001/docs)
 
-## Configuration
+---
 
-The universe's properties, nodes, and physics constraints are defined in `universe-config.json` at the root of the project. Modifying this file will automatically alter the simulation conditions on the next backend startup.
+## 🧪 Testing the AI Co-Pilot
+
+Once the application is running, you can test the AI Co-Pilot's routing decisions directly through the UI or via the API:
+
+### Via the Web UI
+1. Open the frontend at `http://localhost:8080`.
+2. Locate the **Routing Interface**.
+3. You can either use the structured fields (Origin, Destination, Message) or try the **Natural Language** input (e.g., *"Send a priority message from Caelum to Aegis"*).
+4. Watch the Route Log output to see the AI Co-Pilot's explanation of which links it chose and which it avoided (e.g., *Chimera footprint flagged*).
+
+### Via the API
+Send a `POST` request to the intelligent routing endpoint:
+```bash
+curl -X POST http://127.0.0.1:3001/api/route \
+  -H "Content-Type: application/json" \
+  -H "x-relic-api-key: RELIC-RING-SECURE-26" \
+  -d '{"origin": "Caelum", "destination": "Aegis", "message": "hello"}'
+```
+
+You will receive the Unified Reporting Protocol JSON, containing:
+- `chosen_path`
+- `link_evaluations` (showing exact penalties, risk, and trust scores for each link)
+- `explanation`
+
+---
+
+## 📁 Project Structure
+
+* `backend/`: FastAPI application containing all Phase 2 AI models.
+    * `core/copilot.py`: The Analytical AI Co-Pilot routing engine.
+    * `inference/`: Inference wrappers for loading and querying the trained ML models.
+    * `training/`: Training scripts (`train_all.py`, etc.) used to generate the models from historical telemetry.
+    * `models/`: The serialized `.joblib` and `.pkl` artifacts generated by the training suite.
+* `frontend/`: React application built with Vite.
+    * Proxies API calls directly to the backend via Nginx in the Docker setup.
+* `universe-config.json`: Master configuration for planets, towers, and physics variables.

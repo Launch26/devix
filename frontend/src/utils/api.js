@@ -33,9 +33,9 @@ export async function sendMessage(origin, destination, message) {
 }
 
 export async function routeMessage(payload) {
-  return request('/route', {
+  return request('/route_ui', {
     method: 'POST',
-    body: JSON.stringify(payload), // payload can have { text } or { origin, destination, message }
+    body: JSON.stringify(payload),
   });
 }
 

@@ -13,8 +13,12 @@ Architecture:
 3. Output: Unified Reporting Protocol JSON
 """
 
+import os
+import json
 import math
+import httpx
 from collections import defaultdict
+from dotenv import load_dotenv
 
 from core.router import find_route
 from simulation.physics import compute_void_distance, compute_void_travel_time
@@ -25,6 +29,10 @@ from inference.targeting_model import compute_targeting_risk
 from core.nlp_parser import parse_request
 from simulation import universe
 from simulation import chaos
+
+load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
+GROQ_API_KEY = os.getenv('GROQ_API_KEY', '')
+GROQ_URL = os.getenv('GROQ_URL', 'https://api.groq.com/openai/v1/chat/completions')
 
 # -- Normalized cost function weights --
 # All components are normalized to [0, 1] before weighting.
@@ -86,6 +94,7 @@ def evaluate_route(text=None, origin=None, destination=None,
     current_node = origin
     chosen_path = [current_node]
     link_evaluations = []
+    avoided_links = []   # Links considered but ruled out due to risk
     total_combined_cost = 0.0
     total_estimated_latency = 0.0
     initial_route_changed = False
@@ -103,10 +112,12 @@ def evaluate_route(text=None, origin=None, destination=None,
             b = link['target']
             link_id = "-".join(sorted([a, b]))
             
-            cost, eval_dict = _evaluate_link_cost(link_id, a, b, uni, live_states)
+            cost, est_latency, eval_dict = _evaluate_link_cost(link_id, a, b, uni, live_states)
             adjusted_weights[link_id] = cost
             if eval_dict:
                 evaluations_for_hop[link_id] = eval_dict
+                # Store estimated latency separately so we can sum it later if this link is chosen
+                eval_dict['_latency'] = est_latency
 
         # Run Dijkstra with AI-adjusted weights
         route = find_route(current_node, destination, uni, adjusted_weights=adjusted_weights)
@@ -115,45 +126,48 @@ def evaluate_route(text=None, origin=None, destination=None,
             return {'status': 'undeliverable', 'error': 'Undeliverable: No safe alternate route found'}
             
         next_node = route[1]
-        link_id = "-".join(sorted([current_node, next_node]))
+        chosen_link_id = "-".join(sorted([current_node, next_node]))
         
         # Check if we deviated from the initial route
         if len(chosen_path) - 1 < len(baseline_route) - 1:
-            if link_id != "-".join(sorted([baseline_route[len(chosen_path)-1], baseline_route[len(chosen_path)]])):
+            if chosen_link_id != "-".join(sorted([baseline_route[len(chosen_path)-1], baseline_route[len(chosen_path)]])):
                 initial_route_changed = True
         else:
             initial_route_changed = True
 
+        # Track links from current_node that were considered but NOT chosen
+        for ev in evaluations_for_hop.values():
+            lid = ev['link_id']
+            # Only look at links incident to the current node
+            nodes_in_link = set(lid.split('-'))
+            if current_node in nodes_in_link and lid != chosen_link_id:
+                # Flag it as avoided if it had a significant risk signal
+                if ev['trust_score'] < 0.5 or ev['targeting_risk_score'] > 0.4 or ev['combined_cost'] == float('inf'):
+                    avoided_links.append(ev)
+
         # Commit to this hop
         chosen_path.append(next_node)
-        eval_dict = evaluations_for_hop.get(link_id)
+        eval_dict = evaluations_for_hop.get(chosen_link_id)
         if eval_dict:
+            est_latency = eval_dict.pop('_latency', 0)
             link_evaluations.append(eval_dict)
             total_combined_cost += eval_dict['combined_cost']
-            total_estimated_latency += eval_dict['estimated_latency_ms']
+            total_estimated_latency += est_latency
             
             # Update route diversity tracker
-            _recent_routes[link_id] += 1
+            _recent_routes[chosen_link_id] += 1
             
         current_node = next_node
 
     # -- Step 4: Build Unified Reporting Protocol output --
-    explanation_parts = []
-    for eval_entry in link_evaluations:
-        if eval_entry['trust_score'] < 0.5:
-            explanation_parts.append(
-                f"Link {eval_entry['link_id']}: trust={eval_entry['trust_score']:.2f} (Chimera footprint flagged)"
-            )
-        if eval_entry['targeting_risk_score'] > 0.5:
-            explanation_parts.append(
-                f"Link {eval_entry['link_id']}: targeting_risk={eval_entry['targeting_risk_score']:.2f} (high traffic target)"
-            )
-
-    if initial_route_changed:
-        explanation_parts.insert(0, f"Rerouted from baseline path {baseline_route}")
-
-    if not explanation_parts:
-        explanation_parts.append("All links passed safety evaluation. Using optimal physics route.")
+    explanation = _generate_explanation(
+        origin=origin,
+        destination=destination,
+        chosen_path=chosen_path,
+        baseline_route=baseline_route,
+        link_evaluations=link_evaluations,
+        avoided_links=avoided_links,
+    )
 
     output = {
         'origin_id': origin,
@@ -161,10 +175,95 @@ def evaluate_route(text=None, origin=None, destination=None,
         'chosen_path': chosen_path,
         'link_evaluations': link_evaluations,
         'final_latency_estimate_ms': round(total_estimated_latency, 1),
-        'explanation': '; '.join(explanation_parts)
+        'explanation': explanation
     }
 
     return output
+
+
+def _generate_explanation(origin, destination, chosen_path, baseline_route,
+                          link_evaluations, avoided_links):
+    """
+    Generate a natural-language explanation of the routing decision.
+    
+    Describes every avoided link with a specific reason (Chimera footprint,
+    high targeting risk, saturation) and the detour taken.
+    Uses the Groq LLM (same as nlp_parser) when available; falls back to
+    a deterministic template otherwise.
+    """
+    # Build a structured fact block that the LLM will narrate
+    facts = []
+
+    baseline_str = ' -> '.join(baseline_route)
+    chosen_str   = ' -> '.join(chosen_path)
+    rerouted = (chosen_path != baseline_route)
+
+    if rerouted:
+        facts.append(f"Baseline route was {baseline_str}. Chosen route is {chosen_str} (rerouted).")
+    else:
+        facts.append(f"Chosen route {chosen_str} matches baseline.")
+
+    for ev in avoided_links:
+        lid   = ev['link_id']
+        trust = ev['trust_score']
+        risk  = ev['targeting_risk_score']
+        cost  = ev['combined_cost']
+        reasons = []
+        if cost == float('inf') or cost >= 9e8:
+            reasons.append("link saturated (infinite cost)")
+        if trust < 0.5:
+            reasons.append(f"trust score {trust:.2f} — Chimera footprint detected")
+        if risk > 0.4:
+            reasons.append(f"targeting risk {risk:.2f} — high-traffic jamming target")
+        if reasons:
+            facts.append(f"Avoided {lid}: {', '.join(reasons)}.")
+
+    for ev in link_evaluations:
+        lid   = ev['link_id']
+        trust = ev['trust_score']
+        risk  = ev['targeting_risk_score']
+        if trust < 0.5:
+            facts.append(f"Chosen link {lid} has low trust {trust:.2f} but was the best available option.")
+        if risk > 0.5:
+            facts.append(f"Chosen link {lid} has elevated targeting risk {risk:.2f}.")
+
+    if not avoided_links and not rerouted:
+        facts.append("All evaluated links passed safety thresholds. Using optimal physics route.")
+
+    facts_text = ' '.join(facts)
+
+    # Try LLM narration
+    if GROQ_API_KEY:
+        try:
+            prompt = (
+                "You are the Chimera Defense Co-Pilot for the Zeta-26 interplanetary network.\n"
+                "Summarise the routing decision into exactly ONE concise sentence.\n"
+                "CRITICAL: You MUST mention EVERY avoided link along with its specific risk value and reason, and then state the chosen path.\n"
+                "Format EXACTLY like this example: 'Avoided Caelum-Elysium and Boreas-Dawn due to high-traffic jamming targeting risks of 0.55 and 0.47, choosing Caelum to Dawn to Aegis instead.'\n"
+                "Do NOT start with 'Explanation:'. Just provide the sentence directly.\n\n"
+                f"Facts: {facts_text}"
+            )
+            resp = httpx.post(
+                GROQ_URL,
+                headers={'Authorization': f'Bearer {GROQ_API_KEY}', 'Content-Type': 'application/json'},
+                json={
+                    'model': 'llama-3.3-70b-versatile',
+                    'messages': [{'role': 'user', 'content': prompt}],
+                    'temperature': 0.0,
+                    'max_tokens': 120,
+                },
+                timeout=10,
+            )
+            resp.raise_for_status()
+            sentence = resp.json()['choices'][0]['message']['content'].strip()
+            # Strip any accidental markdown
+            sentence = sentence.replace('**', '').replace('*', '').strip('`').strip()
+            return sentence
+        except Exception as e:
+            print(f"[Copilot] LLM explanation failed, using template: {e}")
+
+    # Deterministic fallback
+    return facts_text
 
 
 def _evaluate_link_cost(link_id, current_node, next_node, uni, live_states):
@@ -188,7 +287,7 @@ def _evaluate_link_cost(link_id, current_node, next_node, uni, live_states):
     # -- Check if saturated (ONLY when we have live data) --
     if has_live_data and link_id in live_states:
         if status == 'saturated' or self_reported_latency is None:
-            return float('inf'), None
+            return float('inf'), 0, None
 
     # -- Invoke sub-model 1: Congestion Prediction --
     # predicted_latency: the model's full estimate of observed latency (NOT a penalty)
@@ -199,7 +298,7 @@ def _evaluate_link_cost(link_id, current_node, next_node, uni, live_states):
     )
 
     if congestion_penalty == float('inf'):
-        return float('inf'), None
+        return float('inf'), 0, None
 
     # -- Invoke sub-model 2: Trust Score --
     if self_reported_latency is not None and self_reported_latency > 0:
@@ -264,17 +363,17 @@ def _evaluate_link_cost(link_id, current_node, next_node, uni, live_states):
         estimated_latency = w * estimated_from_congestion + (1 - w) * estimated_from_trust
     else:
         estimated_latency = estimated_from_congestion
+    
 
     eval_dict = {
         'link_id': link_id,
         'predicted_congestion_penalty_ms': round(congestion_penalty, 1),
         'trust_score': round(trust_score, 2),
         'targeting_risk_score': round(targeting_risk, 2),
-        'combined_cost': round(combined_cost, 1),
-        'estimated_latency_ms': round(estimated_latency, 1)
+        'combined_cost': round(combined_cost, 4)
     }
 
-    return combined_cost, eval_dict
+    return combined_cost, estimated_latency, eval_dict
 
 
 def reset_diversity_tracker():
