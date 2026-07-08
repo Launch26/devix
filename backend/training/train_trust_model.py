@@ -66,7 +66,12 @@ def train_trust_model():
         beta += group['p_deceptive'].sum()
         
         trust_score = alpha / (alpha + beta)
-        trust_params[link_id] = {'alpha': alpha, 'beta': beta}
+        median_ratio = float(group['ratio'].median())
+        trust_params[link_id] = {
+            'alpha': alpha,
+            'beta': beta,
+            'median_ratio': median_ratio  # Used at inference to correct self-reported latency
+        }
         # print(f"  {link_id}: alpha={alpha:.2f}, beta={beta:.2f}, trust={trust_score:.4f}")
     
     # 6. Compute global prior (average across all links) for unseen links

@@ -19,21 +19,30 @@ from collections import defaultdict
 from core.router import find_route
 from simulation.physics import compute_void_distance, compute_void_travel_time
 from core import chimera_api
-from inference.congestion_model import predict_congestion_penalty
-from inference.trust_model import compute_trust_score
+from inference.congestion_model import predict_congestion
+from inference.trust_model import compute_trust_score, correct_self_reported
 from inference.targeting_model import compute_targeting_risk
 from core.nlp_parser import parse_request
 from simulation import universe
 from simulation import chaos
 
-# -- Cost function weights --
-CONGESTION_WEIGHT = 1.0
-TRUST_PENALTY_WEIGHT = 200.0
-TARGETING_RISK_WEIGHT = 150.0
+# -- Normalized cost function weights --
+# All components are normalized to [0, 1] before weighting.
+# Weights reflect routing PRIORITY, not scale.
+W_LATENCY   = 0.30   # Prefer faster routes
+W_TRUST     = 0.40   # Heavily penalize deceptive links (core challenge objective)
+W_TARGETING = 0.20   # Moderately avoid targeted/jammed links
+W_DIVERSITY = 0.10   # Mild preference for route diversity
+
+# -- Latency normalization bounds (from training data) --
+# observed_latency_ms: 5th percentile ≈ 71k, 95th ≈ 465k
+# Using 5th/95th to avoid outlier compression. Values outside are clamped.
+LATENCY_MIN = 20_000.0    # ~min observed latency
+LATENCY_MAX = 500_000.0   # ~95th percentile (above this → saturated territory)
+MAX_REUSE   = 3           # Diversity cap: 3 reuses → fully penalized
 
 # -- Route diversity tracking --
 _recent_routes = defaultdict(int)
-DIVERSITY_PENALTY_PER_USE = 20.0
 
 
 def evaluate_route(text=None, origin=None, destination=None,
@@ -182,7 +191,9 @@ def _evaluate_link_cost(link_id, current_node, next_node, uni, live_states):
             return float('inf'), None
 
     # -- Invoke sub-model 1: Congestion Prediction --
-    congestion_penalty = predict_congestion_penalty(
+    # predicted_latency: the model's full estimate of observed latency (NOT a penalty)
+    # congestion_penalty: additional latency above zero-load baseline (for cost weighting)
+    predicted_latency, congestion_penalty = predict_congestion(
         link_id, load_ratio,
         link_state.get('capacity_units')
     )
@@ -204,29 +215,55 @@ def _evaluate_link_cost(link_id, current_node, next_node, uni, live_states):
     L = compute_void_distance(node_a, node_b, metadata)
     Tv = compute_void_travel_time(node_a, node_b, L, metadata)
 
-    # -- Compute combined cost --
-    trust_penalty = (1.0 - trust_score) * TRUST_PENALTY_WEIGHT
-    targeting_penalty = targeting_risk * TARGETING_RISK_WEIGHT
-    diversity_penalty = _recent_routes.get(link_id, 0) * DIVERSITY_PENALTY_PER_USE
+    # -- Compute combined cost (for ROUTING decisions) --
+    # All components normalized to [0, 1], then weighted by routing priority.
+    #
+    # Latency: raw ms → [0, 1] via min-max from training data
+    raw_latency = Tv + congestion_penalty
+    norm_latency = max(0.0, min(1.0, (raw_latency - LATENCY_MIN) / (LATENCY_MAX - LATENCY_MIN)))
+    
+    # Trust: already [0, 1]. Invert: low trust → high penalty.
+    norm_trust_risk = 1.0 - trust_score
+    
+    # Targeting: already [0, 1] from logistic regression probability.
+    norm_targeting = targeting_risk
+    
+    # Diversity: reuse count capped at MAX_REUSE.
+    norm_diversity = min(_recent_routes.get(link_id, 0) / MAX_REUSE, 1.0)
 
     combined_cost = (
-        Tv +
-        congestion_penalty * CONGESTION_WEIGHT +
-        trust_penalty +
-        targeting_penalty +
-        diversity_penalty
+        W_LATENCY   * norm_latency +
+        W_TRUST     * norm_trust_risk +
+        W_TARGETING * norm_targeting +
+        W_DIVERSITY * norm_diversity
     )
 
-    # -- Estimate real latency using trust-weighted blend --
-    # Our model's prediction: physics baseline + predicted congestion penalty
-    model_latency = Tv + congestion_penalty
-    
-    # If we have live self-reported latency, blend it with our model based on trust.
-    # High trust → believe the link's self-report. Low trust → rely on our model.
+    # -- Estimate real latency (for REPORTING) --
+    # Two independent estimates of the same quantity: actual experienced latency.
+    #
+    # Estimate 1 (from congestion model):
+    #   predicted_latency = polyval(load_ratio), trained directly on observed_latency_ms.
+    #
+    # Estimate 2 (from trust correction of self-reported):
+    #   corrected = self_reported / median_ratio
+    #   If link historically under-reports by ratio 0.65, this scales up to reality.
+    #   For honest links (ratio ≈ 1.0), corrected ≈ self_reported.
+    #
+    # Blend: use trust_score as confidence in the self-report pathway.
+    # High trust → trust correction is reliable (ratio ≈ 1.0), lean toward it.
+    # Low trust → trust correction is a rough estimate, lean toward congestion model.
+
+    estimated_from_congestion = predicted_latency if predicted_latency > 0 else Tv
+
     if self_reported_latency is not None and self_reported_latency > 0:
-        estimated_latency = (trust_score * self_reported_latency) + ((1.0 - trust_score) * model_latency)
+        estimated_from_trust = correct_self_reported(link_id, self_reported_latency)
+        # Blend the two estimates. Both estimate actual latency.
+        # High trust → lean toward trust correction (honest links are reliable)
+        # Low trust → lean toward congestion model (deceptive corrections are noisy)
+        w = 1.0 - trust_score  # weight for congestion model
+        estimated_latency = w * estimated_from_congestion + (1 - w) * estimated_from_trust
     else:
-        estimated_latency = model_latency
+        estimated_latency = estimated_from_congestion
 
     eval_dict = {
         'link_id': link_id,
