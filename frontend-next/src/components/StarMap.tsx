@@ -380,7 +380,7 @@ export default function StarMap({
     }
 
     async function runAnimation() {
-      await sleep(200);
+      await sleep(500);
       emit(`📦 Packet created at ${route[0]}`, 'green');
       emit(`🔭 Routing path calculated`, 'white');
       if (animationData.security) {
@@ -424,7 +424,7 @@ export default function StarMap({
 
           setPhase({ phase: 'In Transit', step: 2, total: 5 });
           emit(`🚀 Transmitting to ${planetId}`, 'cyan');
-          await animatePacketLinear(fromPos, toPos, 1200);
+          await animatePacketLinear(fromPos, toPos, 2500);
 
           setGlowingLinks(prev => {
             const next = new Set(prev);
@@ -456,7 +456,7 @@ export default function StarMap({
         const segments = hop.fiber_segments || 0;
         if (segments > 0 && entryTower !== null && entryTower !== undefined && exitTower !== null && exitTower !== undefined) {
           emit(`⚡ Moving: Tower ${entryTower} → Tower ${exitTower} (${planetId})`, 'white');
-          const duration = Math.max(400, segments * 120);
+          const duration = Math.max(800, segments * 250);
 
           // Determine direction (CW default)
           const N = node.active_towers;
@@ -467,7 +467,7 @@ export default function StarMap({
           await animatePacketArc(planetId, entryTower, exitTower, direction, duration);
         } else if (entryTower !== null && entryTower !== undefined) {
           // Stationary — pulse tower
-          await sleep(400);
+          await sleep(1000);
         }
 
         if (exitTower !== null && exitTower !== undefined) {
@@ -475,7 +475,7 @@ export default function StarMap({
         }
 
         // Packet leaves planet
-        await sleep(100);
+        await sleep(500);
       }
 
       // Delivery flash
@@ -491,7 +491,7 @@ export default function StarMap({
         setDelivered(true);
         setPacketPos(null);
         setCometTail([]);
-        await sleep(2000);
+        await sleep(3000);
         setDelivered(false);
         setFlashPlanet(null);
       }
@@ -510,7 +510,7 @@ export default function StarMap({
       cancelled = true;
       if (animRef.current?.cancel) animRef.current.cancel();
     };
-  }, [animationData]);
+  }, [animationData, animSpeed, nodes, positions, onAnimEvent, onPhaseChange, setActiveHop]);
 
   // Click handler
   const handleSVGClick = useCallback((e) => {

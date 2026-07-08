@@ -47,7 +47,7 @@ export default function ControlConsole({
       {/* Floating control console header */}
       <div className="flex items-center gap-2 pb-3 border-b border-neon-cyan/10">
         <Radio className="w-4 h-4 text-neon-cyan animate-pulse" />
-        <span className="font-heading text-xs font-bold tracking-[0.2em] text-[#e2e0ec] uppercase">
+        <span className="font-heading tracking-[0.1em] text-[#e2e0ec] uppercase">
           COMMAND CONSOLE
         </span>
       </div>
@@ -57,7 +57,7 @@ export default function ControlConsole({
         {/* Sound Toggle */}
         <button
           onClick={toggleAudio}
-          className={`flex items-center justify-between w-full px-4 py-3 rounded-btn border text-[11px] font-bold tracking-[0.15em] uppercase transition-all duration-300 ${
+          className={`flex items-center justify-between w-full px-4 py-3 rounded-btn border text-[12px] font-bold tracking-[0.1em] uppercase transition-all duration-300 ${
             isAudioMuted
               ? "bg-neon-crimson/5 border-neon-crimson/20 text-neon-crimson/80 hover:border-neon-crimson/40 hover:bg-neon-crimson/10"
               : "bg-neon-cyan/5 border-neon-cyan/20 text-neon-cyan hover:border-neon-cyan/50 hover:shadow-[0_0_15px_rgba(0,229,255,0.15)] hover:bg-neon-cyan/10"
@@ -73,54 +73,54 @@ export default function ControlConsole({
         {/* Chaos Mode */}
         <button
           onClick={() => setActiveTab("chaos")}
-          className="flex items-center justify-between w-full px-4 py-3 rounded-btn bg-neon-purple/5 border border-neon-purple/20 text-neon-purple hover:border-neon-purple/50 hover:shadow-[0_0_15px_rgba(139,92,246,0.15)] hover:bg-neon-purple/10 transition-all duration-300 font-bold text-[11px] tracking-[0.15em] uppercase"
+          className="flex items-center justify-between w-full px-4 py-3 rounded-btn bg-neon-purple/5 border border-neon-purple/20 text-neon-purple hover:border-neon-purple/50 hover:shadow-[0_0_15px_rgba(139,92,246,0.15)] hover:bg-neon-purple/10 transition-all duration-300 font-bold text-[12px] tracking-[0.1em] uppercase"
         >
           <span className="flex items-center gap-2">
             <ShieldAlert className="w-4 h-4" />
             CHAOS MODE
           </span>
-          <span className="text-[9px] text-[#4a4560] font-mono">⚡ SYS</span>
+          <span className="text-[12px] text-[#4a4560] font-mono">⚡ SYS</span>
         </button>
 
         {/* Kill Planet */}
         <button
           onClick={() => setActiveTab("kill-planet")}
-          className="flex items-center justify-between w-full px-4 py-3 rounded-btn bg-neon-crimson/5 border border-neon-crimson/20 text-neon-crimson hover:border-neon-crimson/50 hover:shadow-[0_0_15px_rgba(239,68,68,0.15)] hover:bg-neon-crimson/10 transition-all duration-300 font-bold text-[11px] tracking-[0.15em] uppercase"
+          className="flex items-center justify-between w-full px-4 py-3 rounded-btn bg-neon-crimson/5 border border-neon-crimson/20 text-neon-crimson hover:border-neon-crimson/50 hover:shadow-[0_0_15px_rgba(239,68,68,0.15)] hover:bg-neon-crimson/10 transition-all duration-300 font-bold text-[12px] tracking-[0.1em] uppercase"
         >
           <span className="flex items-center gap-2">
             <Skull className="w-4 h-4" />
             KILL PLANET
           </span>
-          <span className="text-[9px] text-neon-crimson/40 font-mono">CRITICAL</span>
+          <span className="text-[12px] text-neon-crimson/40 font-mono">CRITICAL</span>
         </button>
       </div>
 
       {/* Divider */}
-      <div className="h-[1px] bg-gradient-to-r from-transparent via-neon-cyan/10 to-transparent my-1" />
+      <div className="h-[2px] bg-gradient-to-r from-transparent via-neon-cyan/80 to-transparent my-1" />
 
       {/* Quick Network Stats */}
       <div className="flex flex-col gap-4">
-        <span className="text-[9px] font-bold tracking-[0.2em] text-[#4a4560] uppercase">
+        <span className="text-[15px]  tracking-[0.1em] text-[#ffffff] uppercase">
           QUICK NETWORK STATS
         </span>
 
         <div className="grid grid-cols-2 gap-3">
           {/* Stat Box: Active Nodes */}
           <div className="bg-void-deep/40 p-3 rounded-btn border border-neon-cyan/5 flex flex-col gap-1">
-            <span className="text-[8px] font-mono tracking-wider text-[#9d97b5] uppercase">
+            <span className="text-[12px] font-mono tracking-wider text-[#ffffff] uppercase">
               ACTIVE NODES
             </span>
             <div className="flex items-baseline gap-1.5">
               <span className="font-heading text-lg font-bold text-neon-cyan">
                 {activeNodesCount}
               </span>
-              <span className="text-[9px] text-[#4a4560] font-mono">/ {totalPlanetsCount}</span>
+              <span className="text-[12px] text-[#ffffff] font-mono">/ {totalPlanetsCount}</span>
             </div>
           </div>
 
           {/* Stat Box: Health */}
           <div className="bg-void-deep/40 p-3 rounded-btn border border-neon-cyan/5 flex flex-col gap-1">
-            <span className="text-[8px] font-mono tracking-wider text-[#9d97b5] uppercase">
+            <span className="text-[12px] font-mono tracking-wider text-[#ffffff] uppercase">
               NET HEALTH
             </span>
             <div className="flex items-baseline gap-1">
@@ -138,7 +138,7 @@ export default function ControlConsole({
 
           {/* Stat Box: Routes */}
           <div className="bg-void-deep/40 p-3 rounded-btn border border-neon-cyan/5 flex flex-col gap-1">
-            <span className="text-[8px] font-mono tracking-wider text-[#9d97b5] uppercase">
+            <span className="text-[12px] font-mono tracking-wider text-[#ffffff] uppercase">
               ACTIVE ROUTES
             </span>
             <span className="font-heading text-lg font-bold text-neon-purple">
@@ -148,10 +148,10 @@ export default function ControlConsole({
 
           {/* Stat Box: Avg Latency */}
           <div className="bg-void-deep/40 p-3 rounded-btn border border-neon-cyan/5 flex flex-col gap-1">
-            <span className="text-[8px] font-mono tracking-wider text-[#9d97b5] uppercase">
+            <span className="text-[12px] font-mono tracking-wider text-[#ffffff] uppercase">
               AVG LATENCY
             </span>
-            <span className="font-heading text-xs font-bold text-neon-orange truncate mt-1">
+            <span className="font-heading text-s font-bold text-neon-orange truncate mt-1">
               {avgLatencyStr}
             </span>
           </div>

@@ -37,7 +37,7 @@ export default function EventLog({ events }: EventLogProps) {
     <div className="flex flex-col h-full overflow-hidden select-none">
       <div className="flex items-center gap-1.5 pb-2.5 mb-2.5 border-b border-neon-cyan/10">
         <Terminal className="w-3.5 h-3.5 text-[#4a4560]" />
-        <span className="font-heading text-[10px] font-bold tracking-widest text-[#4a4560] uppercase">
+        <span className="font-heading text-[12px] font-bold tracking-widest text-[#4a4560] uppercase">
           LIVE PROTOCOL EVENTS
         </span>
       </div>

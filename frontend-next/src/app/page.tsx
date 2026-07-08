@@ -120,7 +120,58 @@ export default function App() {
 
     const { data, error: err } = await routeMessage(payload);
     setSending(false);
-    if (err) { setError(err); return; }
+    if (err) {
+      setError(err);
+      
+      let origin = "UNKNOWN";
+      let destination = "UNKNOWN";
+      
+      if (inputMode === "nlp") {
+        const planets = ["Aegis", "Boreas", "Caelum", "Dawn", "Elysium", "Fenix"];
+        const foundPlanets: string[] = [];
+        const words = nlpText.split(/[^a-zA-Z]+/);
+        for (const w of words) {
+          const wLower = w.toLowerCase();
+          const pMatch = planets.find(p => p.toLowerCase() === wLower);
+          if (pMatch && !foundPlanets.includes(pMatch)) {
+            foundPlanets.push(pMatch);
+          }
+        }
+        
+        if (foundPlanets.length >= 2) {
+          origin = foundPlanets[0];
+          destination = foundPlanets[1];
+          
+          const textLower = nlpText.toLowerCase();
+          const fromMatch = textLower.match(/from\s+([a-z]+)/);
+          const toMatch = textLower.match(/to\s+([a-z]+)/);
+          if (fromMatch) {
+            const p = planets.find(pl => pl.toLowerCase() === fromMatch[1]);
+            if (p) origin = p;
+          }
+          if (toMatch) {
+            const p = planets.find(pl => pl.toLowerCase() === toMatch[1]);
+            if (p) destination = p;
+          }
+        } else if (foundPlanets.length === 1) {
+          origin = foundPlanets[0];
+        }
+      } else {
+        origin = selectedOrigin || "UNKNOWN";
+        destination = selectedDestination || "UNKNOWN";
+      }
+      
+      setCopilotResult({
+        origin_id: origin,
+        destination_id: destination,
+        chosen_path: [],
+        link_evaluations: [],
+        final_latency_estimate_ms: 0,
+        explanation: err,
+        is_error: true
+      });
+      return;
+    }
 
     setCopilotResult(data);
     const pkt = data.packet || data;
@@ -175,8 +226,6 @@ export default function App() {
       {/* 1. Fixed Header Navigation */}
       <Header
         isOperational={!hasKills}
-        isAudioMuted={isAudioMuted}
-        toggleAudio={toggleAudio}
         setActiveTab={setActiveTab}
       />
 
@@ -193,7 +242,7 @@ export default function App() {
             {/* HUD Info corner tags */}
             <div className="absolute top-4 left-4 z-10 flex items-center gap-2">
               <span className="w-1.5 h-1.5 rounded-full bg-neon-cyan animate-ping" />
-              <span className="font-mono text-[9px] tracking-widest text-neon-cyan/70 uppercase">
+              <span className="font-mono text-[12px] tracking-widest text-[#e4dfdf] uppercase">
                 ZETA-Star System Telemetry Uplink
               </span>
             </div>
@@ -216,7 +265,7 @@ export default function App() {
             </div>
             
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-none text-center">
-              <div className="font-mono text-[9px] tracking-widest text-[#9d97b5]/60 animate-bounce">
+              <div className="font-mono text-[12px] tracking-widest text-[#ffffff]/80 animate-bounce">
                 ▼ SCROLL DOWN FOR DIAGNOSTICS & SYSTEM LOGS ▼
               </div>
             </div>
@@ -267,6 +316,7 @@ export default function App() {
         {/* 4. Telemetry diagnostics scroll sections */}
         <AnalyticsSection 
           packetResult={packetResult} 
+          copilotResult={copilotResult}
           eventLog={eventLog} 
         />
       </div>
