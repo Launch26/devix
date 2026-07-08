@@ -1,0 +1,9 @@
+.star-background-container {
+  width: 100vw;
+  height: 100vh;
+  position: fixed; /* or 'absolute' depending on your layout wrapper */
+  top: 0;
+  left: 0;
+  z-index: -1;     /* Places the background behind all other UI elements */
+  overflow: hidden;
+}
