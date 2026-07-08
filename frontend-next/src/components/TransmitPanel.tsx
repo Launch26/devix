@@ -54,13 +54,25 @@ export default function TransmitPanel({
       <div className="flex items-center justify-between pb-3 border-b border-neon-cyan/10">
         <div className="flex items-center gap-2">
           <Terminal className="w-3.5 h-3.5 text-neon-cyan" />
-          <span className="font-heading text-xs font-bold tracking-widest text-[#e2e0ec] uppercase">
+          <span className="font-heading text-lg font-bold tracking-widest text-[#e2e0ec] uppercase">
             TRANSMIT MESSAGING
           </span>
         </div>
 
         {/* Toggle Pills */}
         <div className="flex bg-void-deep/80 p-0.5 rounded-full border border-neon-cyan/15 relative">
+          
+          <button
+            onClick={() => setInputMode("nlp")}
+            className={`px-3 py-1 text-[9px] font-bold tracking-wider rounded-full transition-all duration-300 flex items-center gap-1 ${
+              inputMode === "nlp"
+                ? "bg-neon-purple/20 text-neon-purple border border-neon-purple/40"
+                : "text-[#9d97b5] hover:text-[#e2e0ec]"
+            }`}
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            AI CO-PILOT
+          </button>
           <button
             onClick={() => setInputMode("structured")}
             className={`px-3 py-1 text-[9px] font-bold tracking-wider rounded-full transition-all duration-300 ${
@@ -70,17 +82,6 @@ export default function TransmitPanel({
             }`}
           >
             MANUAL
-          </button>
-          <button
-            onClick={() => setInputMode("nlp")}
-            className={`px-3 py-1 text-[9px] font-bold tracking-wider rounded-full transition-all duration-300 flex items-center gap-1 ${
-              inputMode === "nlp"
-                ? "bg-neon-purple/20 text-neon-purple border border-neon-purple/40"
-                : "text-[#9d97b5] hover:text-[#e2e0ec]"
-            }`}
-          >
-            <Sparkles className="w-2.5 h-2.5" />
-            AI CO-PILOT
           </button>
         </div>
       </div>
@@ -92,7 +93,7 @@ export default function TransmitPanel({
             <div className="grid grid-cols-2 gap-3">
               {/* Origin Dropdown */}
               <div className="flex flex-col gap-1.5">
-                <label className="text-[8px] font-bold tracking-wider text-[#4a4560] uppercase">
+                <label className="text-[12px]  tracking-wider text-[#08dcdc] uppercase">
                   ORIGIN PLANET
                 </label>
                 <select
@@ -111,7 +112,7 @@ export default function TransmitPanel({
 
               {/* Destination Dropdown */}
               <div className="flex flex-col gap-1.5">
-                <label className="text-[8px] font-bold tracking-wider text-[#4a4560] uppercase">
+                <label className="text-[12px]  tracking-wider text-[#08dcdc] uppercase">
                   DESTINATION
                 </label>
                 <select
@@ -133,7 +134,7 @@ export default function TransmitPanel({
 
             {/* Message input */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-[8px] font-bold tracking-wider text-[#4a4560] uppercase">
+              <label className="text-[12px]  tracking-wider text-[#08dcdc] uppercase">
                 TRANSMISSION PAYLOAD
               </label>
               <input
@@ -148,8 +149,8 @@ export default function TransmitPanel({
         ) : (
           /* NLP AI Mode */
           <div className="flex flex-col gap-1.5 flex-1 justify-center">
-            <label className="text-[8px] font-bold tracking-wider text-neon-purple uppercase flex items-center gap-1">
-              <Sparkles className="w-2.5 h-2.5 animate-pulse" />
+            <label className="text-[12px] font-bold tracking-wider text-neon-purple uppercase flex items-center gap-1">
+              <Sparkles className="w-3.5 h-3.5 animate-pulse" />
               NATURAL LANGUAGE CO-PILOT PROMPT
             </label>
             <textarea
@@ -164,7 +165,7 @@ export default function TransmitPanel({
 
       {/* Error state */}
       {error && (
-        <div className="px-3 py-2 bg-neon-crimson/10 border border-neon-crimson/30 rounded-btn text-neon-crimson text-[10px] font-mono">
+        <div className="px-3 py-2 bg-neon-crimson/10 border border-neon-crimson/30 rounded-btn text-neon-crimson text-[15px] font-mono">
           {error}
         </div>
       )}
@@ -173,7 +174,7 @@ export default function TransmitPanel({
       <button
         onClick={onSend}
         disabled={isDisabled}
-        className={`w-full py-3.5 rounded-btn font-bold text-[11px] tracking-[0.2em] uppercase flex items-center justify-center gap-2 transition-all duration-300 cursor-pointer ${
+        className={`w-full py-3.5 rounded-btn font-bold text-[15px] tracking-[0.08em] uppercase flex items-center justify-center gap-2 transition-all duration-300 cursor-pointer ${
           inputMode === "nlp"
             ? "bg-gradient-to-r from-neon-purple via-violet-600 to-[#7c3aed] text-white shadow-glow-purple border border-neon-purple/20 hover:shadow-glow-purple-lg hover:-translate-y-0.5"
             : "bg-gradient-to-r from-neon-cyan via-blue-500 to-[#3b82f6] text-white shadow-glow-cyan border border-neon-cyan/20 hover:shadow-glow-cyan-lg hover:-translate-y-0.5"
