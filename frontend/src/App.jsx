@@ -50,7 +50,7 @@ export default function App() {
   const [currentPhase, setCurrentPhase] = useState(null);
   const [selectedHopIdx, setSelectedHopIdx] = useState(null);
   const [isAudioMuted, setIsAudioMuted] = useState(false);
-  const [inputMode, setInputMode] = useState('structured'); // 'structured' | 'nlp'
+  const [inputMode, setInputMode] = useState('nlp'); // 'structured' | 'nlp'
   const [nlpText, setNlpText] = useState('');
   const [copilotResult, setCopilotResult] = useState(null);
   const audioRef = useRef(null);
@@ -190,7 +190,7 @@ export default function App() {
   // Active hop details
   const displayHopIdx = selectedHopIdx !== null ? selectedHopIdx : (activeHop >= 0 ? activeHop : 0);
   const activeHopData = packetResult?.hop_log?.[displayHopIdx] || null;
-  const totalLatency = packetResult?.total_latency_ms || 0;
+  const totalLatency = copilotResult?.final_latency_estimate_ms || packetResult?.total_latency_ms || 0;
 
   // Latency breakdown
   let fiberMs = 0, towerMs = 0, voidMs = 0, atmosphereMs = 0;
@@ -203,6 +203,13 @@ export default function App() {
         atmosphereMs += (hop.void_from_previous.atmosphere_delay_origin_ms || 0) + (hop.void_from_previous.atmosphere_delay_dest_ms || 0);
       }
     }
+  }
+
+  // Factor in Chimera AI estimation
+  const physicsTotal = fiberMs + towerMs + voidMs + atmosphereMs;
+  let aiEstimationMs = 0;
+  if (copilotResult?.final_latency_estimate_ms && copilotResult.final_latency_estimate_ms > physicsTotal) {
+    aiEstimationMs = copilotResult.final_latency_estimate_ms - physicsTotal;
   }
 
   if (!universe) {
@@ -362,8 +369,8 @@ export default function App() {
                 {copilotResult.evaluation_ms && <span className="badge-cyan-sm">{copilotResult.evaluation_ms}ms</span>}
               </div>
               
-              <div style={{ fontSize: '11px', color: '#a8a2b5', marginBottom: 12, lineHeight: 1.4 }}>
-                <strong style={{color: '#fff'}}>Explanation:</strong> {copilotResult.explanation}
+              <div style={{ fontSize: '13px', color: '#e2e8f0', marginBottom: 16, lineHeight: 1.5, letterSpacing: '0.2px' }}>
+                <strong style={{color: '#fff', fontSize: '14px', marginRight: '4px'}}>Explanation:</strong> {copilotResult.explanation}
               </div>
 
               {copilotResult.link_evaluations?.map((ev, i) => {
@@ -644,12 +651,13 @@ export default function App() {
                 {/* Donut chart SVG */}
                 <div className="donut-container">
                   {(() => {
-                    const total = fiberMs + towerMs + voidMs + atmosphereMs || 1;
+                    const total = fiberMs + towerMs + voidMs + atmosphereMs + aiEstimationMs || 1;
                     const segments = [
                       { label: 'Fiber', val: fiberMs, color: '#06b6d4' },
                       { label: 'Tower', val: towerMs, color: '#f59e0b' },
                       { label: 'Atmosphere', val: atmosphereMs, color: '#10b981' },
                       { label: 'Void', val: voidMs, color: '#7c3aed' },
+                      { label: 'AI Estimations', val: aiEstimationMs, color: '#ef4444' },
                     ];
                     const R = 38, cx = 50, cy = 50, strokeW = 14;
                     const circumference = 2 * Math.PI * R;
@@ -659,43 +667,57 @@ export default function App() {
                         <circle cx={cx} cy={cy} r={R} fill="none" stroke="#0a0a1a" strokeWidth={strokeW} />
                         {segments.map((seg, i) => {
                           if (seg.val <= 0) return null;
-                          const pct = seg.val / total;
-                          const dash = pct * circumference;
-                          const elem = (
+                          const fraction = seg.val / total;
+                          const dasharray = `${fraction * circumference} ${circumference}`;
+                          const dashoffset = -offset * circumference;
+                          offset += fraction;
+                          return (
                             <circle
-                              key={i}
-                              cx={cx} cy={cy} r={R}
-                              fill="none"
-                              stroke={seg.color}
-                              strokeWidth={strokeW}
-                              strokeDasharray={`${dash} ${circumference - dash}`}
-                              strokeDashoffset={-offset}
+                              key={i} cx={cx} cy={cy} r={R}
+                              fill="none" stroke={seg.color} strokeWidth={strokeW}
+                              strokeDasharray={dasharray} strokeDashoffset={dashoffset}
                               transform={`rotate(-90 ${cx} ${cy})`}
-                              opacity="0.9"
+                              style={{ transition: 'stroke-dasharray 1s ease-out' }}
                             />
                           );
-                          offset += dash;
-                          return elem;
                         })}
                       </svg>
                     );
                   })()}
                 </div>
 
+                {/* Legend */}
                 <div className="latency-legend">
-                  {[
-                    { label: 'Fiber', val: fiberMs, color: '#06b6d4', pct: fiberMs / (totalLatency || 1) },
-                    { label: 'Tower', val: towerMs, color: '#f59e0b', pct: towerMs / (totalLatency || 1) },
-                    { label: 'Atmosphere', val: atmosphereMs, color: '#10b981', pct: atmosphereMs / (totalLatency || 1) },
-                    { label: 'Void', val: voidMs, color: '#7c3aed', pct: voidMs / (totalLatency || 1) },
-                  ].map(s => (
-                    <div key={s.label} className="latency-legend-row">
-                      <span className="legend-dot" style={{ backgroundColor: s.color }} />
-                      <span className="legend-label">{s.label}</span>
-                      <span className="legend-val">{s.val.toFixed(4)} ms</span>
-                      <span className="legend-pct">({(s.pct * 100).toFixed(2)}%)</span>
-                    </div>
-                  ))}
+                  <div className="ll-item">
+                    <span className="ll-dot" style={{ background: '#06b6d4' }} />
+                    <span className="ll-label">Fiber</span>
+                    <span className="ll-val">{fiberMs.toFixed(4)} ms</span>
+                    <span className="ll-pct">({((fiberMs/totalLatency)*100).toFixed(2)}%)</span>
+                  </div>
+                  <div className="ll-item">
+                    <span className="ll-dot" style={{ background: '#f59e0b' }} />
+                    <span className="ll-label">Tower</span>
+                    <span className="ll-val">{towerMs.toFixed(4)} ms</span>
+                    <span className="ll-pct">({((towerMs/totalLatency)*100).toFixed(2)}%)</span>
+                  </div>
+                  <div className="ll-item">
+                    <span className="ll-dot" style={{ background: '#10b981' }} />
+                    <span className="ll-label">Atmosphere</span>
+                    <span className="ll-val">{atmosphereMs.toFixed(4)} ms</span>
+                    <span className="ll-pct">({((atmosphereMs/totalLatency)*100).toFixed(2)}%)</span>
+                  </div>
+                  <div className="ll-item">
+                    <span className="ll-dot" style={{ background: '#7c3aed' }} />
+                    <span className="ll-label">Void</span>
+                    <span className="ll-val">{voidMs.toFixed(4)} ms</span>
+                    <span className="ll-pct">({((voidMs/totalLatency)*100).toFixed(2)}%)</span>
+                  </div>
+                  <div className="ll-item">
+                    <span className="ll-dot" style={{ background: '#ef4444' }} />
+                    <span className="ll-label">AI Estimations</span>
+                    <span className="ll-val">{aiEstimationMs.toFixed(4)} ms</span>
+                    <span className="ll-pct">({((aiEstimationMs/totalLatency)*100).toFixed(2)}%)</span>
+                  </div>
                 </div>
               </>
             ) : (
@@ -706,7 +728,7 @@ export default function App() {
           </div>
         </footer>
 
-        <AnalyticsSection packetResult={packetResult} eventLog={eventLog} />
+        <AnalyticsSection packetResult={packetResult} eventLog={eventLog} copilotResult={copilotResult} />
       </div>
 
 

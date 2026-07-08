@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function AnalyticsSection({ packetResult, eventLog }) {
+export default function AnalyticsSection({ packetResult, eventLog, copilotResult }) {
   if (!packetResult) {
     return (
       <section className="analytics-section empty">
@@ -65,35 +65,42 @@ export default function AnalyticsSection({ packetResult, eventLog }) {
                       )}
                     </React.Fragment>
                   ))}
-                </tbody>
-              </table>
-            </div>
+              </tbody>
+            </table>
           </div>
+        </div>
 
-          {/* Latency Breakdown */}
-          <div className="analytics-card">
-            <h3 className="ac-title">⚡ Latency Breakdown</h3>
-            <div className="stats-list">
-              {(() => {
-                let fiber = 0, tower = 0, voidMs = 0, atmos = 0;
-                hops.forEach(h => {
-                  fiber += h.latency?.fiber_transit_ms || 0;
-                  tower += h.latency?.tower_delay_ms || 0;
-                  if (h.void_from_previous) {
-                    voidMs += h.void_from_previous.vacuum_only_ms || h.void_from_previous.travel_time_ms || 0;
-                    atmos += (h.void_from_previous.atmosphere_delay_origin_ms || 0) + (h.void_from_previous.atmosphere_delay_dest_ms || 0);
-                  }
-                });
-                return (
-                  <>
-                    <div className="stat-row"><span>Fiber Transit</span> <span>{fiber.toFixed(4)} ms</span></div>
-                    <div className="stat-row"><span>Tower Processing</span> <span>{tower.toFixed(4)} ms</span></div>
-                    <div className="stat-row"><span>Atmospheric Refraction</span> <span>{atmos.toFixed(4)} ms</span></div>
-                    <div className="stat-row"><span>Vacuum Transit</span> <span>{voidMs.toFixed(4)} ms</span></div>
-                    <div className="stat-row total-row"><span>Total End-to-End</span> <span>{packetResult.total_latency_ms?.toFixed(4)} ms</span></div>
-                  </>
-                );
-              })()}
+        {/* Latency Breakdown */}
+        <div className="analytics-card">
+          <h3 className="ac-title">⚡ Latency Breakdown</h3>
+          <div className="stats-list">
+            {(() => {
+              let fiber = 0, tower = 0, voidMs = 0, atmos = 0;
+              hops.forEach(h => {
+                fiber += h.latency?.fiber_transit_ms || 0;
+                tower += h.latency?.tower_delay_ms || 0;
+                if (h.void_from_previous) {
+                  voidMs += h.void_from_previous.vacuum_only_ms || h.void_from_previous.travel_time_ms || 0;
+                  atmos += (h.void_from_previous.atmosphere_delay_origin_ms || 0) + (h.void_from_previous.atmosphere_delay_dest_ms || 0);
+                }
+              });
+              const totalLat = copilotResult?.final_latency_estimate_ms || packetResult.total_latency_ms || 0;
+              const physicsTotal = fiber + tower + voidMs + atmos;
+              let aiEstimationMs = 0;
+              if (copilotResult?.final_latency_estimate_ms && totalLat > physicsTotal) {
+                aiEstimationMs = totalLat - physicsTotal;
+              }
+              return (
+                <>
+                  <div className="stat-row"><span>Fiber Transit</span> <span>{fiber.toFixed(4)} ms</span></div>
+                  <div className="stat-row"><span>Tower Processing</span> <span>{tower.toFixed(4)} ms</span></div>
+                  <div className="stat-row"><span>Atmospheric Refraction</span> <span>{atmos.toFixed(4)} ms</span></div>
+                  <div className="stat-row"><span>Vacuum Transit</span> <span>{voidMs.toFixed(4)} ms</span></div>
+                  <div className="stat-row" style={{ color: '#ef4444' }}><span>AI Traffic Estimations</span> <span>{aiEstimationMs.toFixed(4)} ms</span></div>
+                  <div className="stat-row total-row"><span>Total End-to-End</span> <span>{totalLat.toFixed(4)} ms</span></div>
+                </>
+              );
+            })()}
             </div>
           </div>
 

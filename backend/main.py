@@ -184,7 +184,7 @@ def route_with_copilot_ui(req: RouteRequest):
         route = result['chosen_path']
         origin_id = result['origin_id']
         destination_id = result['destination_id']
-        msg = req.message or (req.text if req.text else "Hello")
+        msg = result.get('message') or req.message or (req.text if req.text else "Hello")
         
         packet = build_packet(origin_id, destination_id, msg, route, uni)
         result['packet'] = packet
