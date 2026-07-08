@@ -23,7 +23,7 @@ from sklearn.metrics import (
 )
 
 # Paths
-BASE_DIR   = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR   = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR   = os.path.join(BASE_DIR, 'Datasets')
 MODELS_DIR = os.path.join(BASE_DIR, 'models')
 EVAL_DIR   = os.path.join(BASE_DIR, 'evaluation')
