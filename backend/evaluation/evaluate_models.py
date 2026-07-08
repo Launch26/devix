@@ -52,112 +52,126 @@ def apply_dark_theme(ax):
         spine.set_edgecolor(STYLE['grid'])
     ax.grid(color=STYLE['grid'], alpha=0.5, linestyle='--', linewidth=0.5)
 
+from sklearn.preprocessing import OneHotEncoder
+
+SPLIT_TICK = 400  # Must match training
 
 # =============================================================================
 # 1. CONGESTION MODEL
 # =============================================================================
 def evaluate_congestion():
     print("\n" + "="*60)
-    print("  CONGESTION MODEL EVALUATION")
+    print("  CONGESTION MODEL EVALUATION (GBR + One-Hot Link ID)")
     print("="*60)
 
+    # ── Load data and apply same cleaning as training ───────────────────
     df = pd.read_csv(os.path.join(DATA_DIR, 'link_traffic_history.csv'))
     df_ok = df[df['status'] == 'ok'].dropna(subset=['observed_latency_ms', 'load_ratio']).copy()
 
-    X_all = df_ok[['load_ratio']].copy()
-    X_all['load_ratio_sq'] = X_all['load_ratio'] ** 2
-    X_all['load_ratio_cb'] = X_all['load_ratio'] ** 3
-    y_all = df_ok['observed_latency_ms'].values
+    # ── Chronological split (same as training) ─────────────────────────
+    df_train = df_ok[df_ok['tick'] < SPLIT_TICK].copy()
+    df_test  = df_ok[df_ok['tick'] >= SPLIT_TICK].copy()
 
-    X_train, X_test, y_train, y_test = train_test_split(
-        X_all.values, y_all, test_size=0.2, random_state=42
-    )
+    # ── Load saved model artifacts ─────────────────────────────────────
+    reg     = joblib.load(os.path.join(MODELS_DIR, 'congestion_regressor.joblib'))
+    encoder = joblib.load(os.path.join(MODELS_DIR, 'congestion_encoder.joblib'))
 
-    reg = joblib.load(os.path.join(MODELS_DIR, 'congestion_regressor.joblib'))
+    # ── Build feature matrices (identical to training) ─────────────────
+    def build_features(sub_df):
+        poly = np.column_stack([
+            sub_df['load_ratio'].values,
+            sub_df['load_ratio'].values ** 2,
+            sub_df['load_ratio'].values ** 3,
+        ])
+        link_ohe = encoder.transform(sub_df[['link_id']].values)
+        return np.hstack([poly, link_ohe])
+
+    X_train = build_features(df_train)
+    X_test  = build_features(df_test)
+    y_train = df_train['observed_latency_ms'].values
+    y_test  = df_test['observed_latency_ms'].values
+
     y_train_pred = reg.predict(X_train)
     y_test_pred  = reg.predict(X_test)
 
+    # ── Metrics ────────────────────────────────────────────────────────
     def reg_metrics(y_true, y_pred, label):
         rmse = math.sqrt(mean_squared_error(y_true, y_pred))
         mae  = mean_absolute_error(y_true, y_pred)
         r2   = r2_score(y_true, y_pred)
         mape = float(np.mean(np.abs((y_true - y_pred) / (np.abs(y_true) + 1e-9))) * 100)
-        print(f"  [{label}]  RMSE={rmse:,.1f}ms  MAE={mae:,.1f}ms  R2={r2:.4f}  MAPE={mape:.2f}%")
+        print(f"  [{label}]  RMSE={rmse:,.1f}ms  MAE={mae:,.1f}ms  R²={r2:.4f}  MAPE={mape:.2f}%")
         return {'rmse_ms': round(rmse, 2), 'mae_ms': round(mae, 2),
                 'r2': round(r2, 4), 'mape_pct': round(mape, 4)}
 
     train_m = reg_metrics(y_train, y_train_pred, "TRAIN")
     test_m  = reg_metrics(y_test,  y_test_pred,  "TEST ")
 
-    # Plots
-    fig = plt.figure(figsize=(16, 10), facecolor=STYLE['bg'])
-    fig.suptitle('Congestion Model - Performance Evaluation',
+    # ── Plots (2×2 grid) ──────────────────────────────────────────────
+    fig = plt.figure(figsize=(16, 14), facecolor=STYLE['bg'])
+    fig.suptitle('Congestion Model (GBR + Link-Aware) — Performance Evaluation',
                  color=STYLE['text'], fontsize=14, fontweight='bold', y=0.98)
-    gs = gridspec.GridSpec(2, 3, figure=fig, hspace=0.4, wspace=0.35)
+    gs = gridspec.GridSpec(2, 2, figure=fig, hspace=0.35, wspace=0.30)
 
-    # Train scatter
+    # ── Panel 1: Actual vs Predicted Scatter (test set) ────────────────
     ax = fig.add_subplot(gs[0, 0])
     apply_dark_theme(ax)
-    idx = np.random.choice(len(y_train), min(3000, len(y_train)), replace=False)
-    ax.scatter(y_train[idx], y_train_pred[idx], alpha=0.15, s=4, color=STYLE['train_color'])
-    lims = [min(y_train.min(), y_train_pred.min()), max(y_train.max(), y_train_pred.max())]
-    ax.plot(lims, lims, 'w--', linewidth=1, label='Perfect')
+    ax.scatter(y_test, y_test_pred, alpha=0.3, s=8, color=STYLE['test_color'], label='Test predictions')
+    lims = [min(y_test.min(), y_test_pred.min()), max(y_test.max(), y_test_pred.max())]
+    ax.plot(lims, lims, 'w--', linewidth=1.5, label='Ideal (45°)')
     ax.set_xlabel('Actual Latency (ms)')
     ax.set_ylabel('Predicted Latency (ms)')
-    ax.set_title(f'Train: Actual vs Predicted\nRMSE={train_m["rmse_ms"]:,.0f}ms  R2={train_m["r2"]:.3f}')
-    ax.legend(fontsize=7)
+    ax.set_title(f'Actual vs Predicted (Test)\nRMSE={test_m["rmse_ms"]:,.0f}ms  R²={test_m["r2"]:.3f}')
+    ax.legend(fontsize=8)
 
-    # Test scatter
+    # ── Panel 2: Residual Plot (test set) ──────────────────────────────
     ax = fig.add_subplot(gs[0, 1])
     apply_dark_theme(ax)
-    ax.scatter(y_test, y_test_pred, alpha=0.3, s=6, color=STYLE['test_color'])
-    lims = [min(y_test.min(), y_test_pred.min()), max(y_test.max(), y_test_pred.max())]
-    ax.plot(lims, lims, 'w--', linewidth=1, label='Perfect')
-    ax.set_xlabel('Actual Latency (ms)')
-    ax.set_ylabel('Predicted Latency (ms)')
-    ax.set_title(f'Test: Actual vs Predicted\nRMSE={test_m["rmse_ms"]:,.0f}ms  R2={test_m["r2"]:.3f}')
-    ax.legend(fontsize=7)
+    residuals = y_test - y_test_pred
+    ax.scatter(y_test_pred, residuals, alpha=0.3, s=8, color=STYLE['test_color'])
+    ax.axhline(0, color='white', linewidth=1.5, linestyle='--')
+    ax.set_xlabel('Predicted Latency (ms)')
+    ax.set_ylabel('Residual (Actual − Predicted) (ms)')
+    ax.set_title('Residual Plot (Test) — Check for Systematic Bias')
 
-    # Metrics bar
-    ax = fig.add_subplot(gs[0, 2])
-    apply_dark_theme(ax)
-    m_names = ['RMSE (ms)', 'MAE (ms)', 'MAPE (%)']
-    tr_vals = [train_m['rmse_ms'], train_m['mae_ms'], train_m['mape_pct']]
-    te_vals = [test_m['rmse_ms'],  test_m['mae_ms'],  test_m['mape_pct']]
-    x = np.arange(len(m_names))
-    w = 0.35
-    ax.bar(x - w/2, tr_vals, w, label='Train', color=STYLE['train_color'], alpha=0.85)
-    ax.bar(x + w/2, te_vals, w, label='Test',  color=STYLE['test_color'],  alpha=0.85)
-    ax.set_xticks(x); ax.set_xticklabels(m_names, fontsize=8)
-    ax.set_title('Train vs Test Metrics'); ax.legend(fontsize=8)
-
-    # Train residuals
+    # ── Panel 3: Feature Importance ────────────────────────────────────
     ax = fig.add_subplot(gs[1, 0])
     apply_dark_theme(ax)
-    ax.hist(y_train - y_train_pred, bins=60, color=STYLE['train_color'], alpha=0.75, density=True)
-    ax.axvline(0, color='white', linewidth=1.5, linestyle='--')
-    ax.set_xlabel('Residual (ms)'); ax.set_ylabel('Density')
-    ax.set_title('Train Residual Distribution')
+    link_feat_names = encoder.get_feature_names_out(['link_id']).tolist()
+    feature_names = ['load_ratio', 'load_ratio²', 'load_ratio³'] + link_feat_names
+    importances = reg.feature_importances_
+    sorted_idx = np.argsort(importances)
+    ax.barh(
+        [feature_names[i] for i in sorted_idx],
+        importances[sorted_idx],
+        color=STYLE['accent'], alpha=0.85
+    )
+    ax.set_xlabel('Feature Importance')
+    ax.set_title('GBR Feature Importances')
+    ax.tick_params(axis='y', labelsize=7)
 
-    # Test residuals
+    # ── Panel 4: Per-Link Prediction Curves ────────────────────────────
     ax = fig.add_subplot(gs[1, 1])
     apply_dark_theme(ax)
-    ax.hist(y_test - y_test_pred, bins=60, color=STYLE['test_color'], alpha=0.75, density=True)
-    ax.axvline(0, color='white', linewidth=1.5, linestyle='--')
-    ax.set_xlabel('Residual (ms)'); ax.set_ylabel('Density')
-    ax.set_title('Test Residual Distribution')
+    representative_links = sorted(df_ok['link_id'].unique())[:4]  # Pick 4 links
+    colors = ['#3b82f6', '#f59e0b', '#10b981', '#ef4444']
+    lr_range = np.linspace(0, 0.89, 200)
 
-    # Load ratio curve
-    ax = fig.add_subplot(gs[1, 2])
-    apply_dark_theme(ax)
-    lr_r = np.linspace(0, 0.9, 200)
-    X_c  = np.column_stack([lr_r, lr_r**2, lr_r**3])
-    ax.scatter(df_ok.sample(min(2000, len(df_ok)), random_state=1)['load_ratio'],
-               df_ok.sample(min(2000, len(df_ok)), random_state=1)['observed_latency_ms'],
-               alpha=0.1, s=3, color='#a78bfa', label='Historical')
-    ax.plot(lr_r, reg.predict(X_c), color=STYLE['accent'], linewidth=2, label='GBR curve')
-    ax.set_xlabel('Load Ratio'); ax.set_ylabel('Latency (ms)')
-    ax.set_title('Load Ratio vs Latency (GBR)')
+    for link_id, color in zip(representative_links, colors):
+        # Historical data points for this link
+        link_data = df_ok[df_ok['link_id'] == link_id]
+        ax.scatter(link_data['load_ratio'], link_data['observed_latency_ms'],
+                   alpha=0.1, s=4, color=color)
+
+        # Model prediction curve for this specific link
+        curve_df = pd.DataFrame({'link_id': [link_id] * len(lr_range), 'load_ratio': lr_range})
+        X_curve = build_features(curve_df)
+        y_curve = reg.predict(X_curve)
+        ax.plot(lr_range, y_curve, color=color, linewidth=2, label=link_id)
+
+    ax.set_xlabel('Load Ratio')
+    ax.set_ylabel('Latency (ms)')
+    ax.set_title('Per-Link Prediction Curves (GBR)')
     ax.legend(fontsize=7)
 
     plt.savefig(os.path.join(EVAL_DIR, 'congestion_evaluation.png'),

@@ -19,27 +19,39 @@ os.makedirs(PLOTS_DIR, exist_ok=True)
 def generate_plots():
     print("\n=== Generating Evaluation Plots ===")
     
-    # 1. Congestion Model Plot
+    # 1. Congestion Model Plot (GBR + One-Hot Link ID)
     traffic_csv = os.path.join(DATA_DIR, 'link_traffic_history.csv')
     if os.path.exists(traffic_csv):
         df_traf = pd.read_csv(traffic_csv)
         df_ok = df_traf[df_traf['status'] == 'ok'].dropna(subset=['observed_latency_ms', 'load_ratio'])
         
-        plt.figure(figsize=(10, 6))
-        # Plot a sample of points to avoid massive scatter plots
-        sample_df = df_ok.sample(min(10000, len(df_ok)))
-        plt.scatter(sample_df['load_ratio'], sample_df['observed_latency_ms'], alpha=0.1, label='Historical Data', color='blue', s=2)
+        plt.figure(figsize=(12, 7))
         
-        # Load regressor
         reg_path = os.path.join(MODELS_DIR, 'congestion_regressor.joblib')
-        if os.path.exists(reg_path):
+        enc_path = os.path.join(MODELS_DIR, 'congestion_encoder.joblib')
+        if os.path.exists(reg_path) and os.path.exists(enc_path):
             reg = joblib.load(reg_path)
-            x_vals = np.linspace(0, 0.9, 100)
-            X_pred = np.column_stack((x_vals, x_vals**2, x_vals**3))
-            y_vals = reg.predict(X_pred)
-            plt.plot(x_vals, y_vals, color='red', linewidth=2, label='Global Regressor Curve')
+            encoder = joblib.load(enc_path)
+            
+            # Plot per-link prediction curves for first 4 links
+            colors = ['#3b82f6', '#f59e0b', '#10b981', '#ef4444']
+            representative_links = sorted(df_ok['link_id'].unique())[:4]
+            lr_range = np.linspace(0, 0.89, 200)
+            
+            for link_id, color in zip(representative_links, colors):
+                # Historical data
+                link_data = df_ok[df_ok['link_id'] == link_id]
+                plt.scatter(link_data['load_ratio'], link_data['observed_latency_ms'],
+                           alpha=0.1, s=2, color=color)
+                
+                # GBR prediction curve for this specific link
+                curve_df = pd.DataFrame({'link_id': [link_id] * len(lr_range), 'load_ratio': lr_range})
+                poly = np.column_stack([lr_range, lr_range**2, lr_range**3])
+                link_ohe = encoder.transform(curve_df[['link_id']].values)
+                X_curve = np.hstack([poly, link_ohe])
+                plt.plot(lr_range, reg.predict(X_curve), color=color, linewidth=2, label=link_id)
         
-        plt.title('Congestion Model: Load Ratio vs Latency')
+        plt.title('Congestion Model: Per-Link Load Ratio vs Latency (GBR)')
         plt.xlabel('Load Ratio')
         plt.ylabel('Observed Latency (ms)')
         plt.legend()
