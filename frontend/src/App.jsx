@@ -688,36 +688,20 @@ export default function App() {
 
                 {/* Legend */}
                 <div className="latency-legend">
-                  <div className="ll-item">
-                    <span className="ll-dot" style={{ background: '#06b6d4' }} />
-                    <span className="ll-label">Fiber</span>
-                    <span className="ll-val">{fiberMs.toFixed(4)} ms</span>
-                    <span className="ll-pct">({((fiberMs/totalLatency)*100).toFixed(2)}%)</span>
-                  </div>
-                  <div className="ll-item">
-                    <span className="ll-dot" style={{ background: '#f59e0b' }} />
-                    <span className="ll-label">Tower</span>
-                    <span className="ll-val">{towerMs.toFixed(4)} ms</span>
-                    <span className="ll-pct">({((towerMs/totalLatency)*100).toFixed(2)}%)</span>
-                  </div>
-                  <div className="ll-item">
-                    <span className="ll-dot" style={{ background: '#10b981' }} />
-                    <span className="ll-label">Atmosphere</span>
-                    <span className="ll-val">{atmosphereMs.toFixed(4)} ms</span>
-                    <span className="ll-pct">({((atmosphereMs/totalLatency)*100).toFixed(2)}%)</span>
-                  </div>
-                  <div className="ll-item">
-                    <span className="ll-dot" style={{ background: '#7c3aed' }} />
-                    <span className="ll-label">Void</span>
-                    <span className="ll-val">{voidMs.toFixed(4)} ms</span>
-                    <span className="ll-pct">({((voidMs/totalLatency)*100).toFixed(2)}%)</span>
-                  </div>
-                  <div className="ll-item">
-                    <span className="ll-dot" style={{ background: '#ef4444' }} />
-                    <span className="ll-label">AI Estimations</span>
-                    <span className="ll-val">{aiEstimationMs.toFixed(4)} ms</span>
-                    <span className="ll-pct">({((aiEstimationMs/totalLatency)*100).toFixed(2)}%)</span>
-                  </div>
+                  {[
+                    { label: 'Fiber', val: fiberMs, color: '#06b6d4', pct: fiberMs / (totalLatency || 1) },
+                    { label: 'Tower', val: towerMs, color: '#f59e0b', pct: towerMs / (totalLatency || 1) },
+                    { label: 'Atmosphere', val: atmosphereMs, color: '#10b981', pct: atmosphereMs / (totalLatency || 1) },
+                    { label: 'Void', val: voidMs, color: '#7c3aed', pct: voidMs / (totalLatency || 1) },
+                    { label: 'AI Estimations', val: aiEstimationMs, color: '#ef4444', pct: aiEstimationMs / (totalLatency || 1) },
+                  ].map(s => (
+                    <div key={s.label} className="latency-legend-row">
+                      <span className="legend-dot" style={{ backgroundColor: s.color }} />
+                      <span className="legend-label">{s.label}</span>
+                      <span className="legend-val">{s.val.toFixed(4)} ms</span>
+                      <span className="legend-pct">({(s.pct * 100).toFixed(2)}%)</span>
+                    </div>
+                  ))}
                 </div>
               </>
             ) : (
